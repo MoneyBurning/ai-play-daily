@@ -307,14 +307,153 @@
     }
   }
 
+  const SKIN_NAMES = ['병아리', '고양이', '개구리', '토끼', '팬더'];
+  const SKIN_UNLOCK_REQ = [0, 10, 25, 50, 100];
+
   class SkinScene extends Phaser.Scene {
     constructor() {
       super('SkinScene');
     }
 
     create() {
-      this.add.text(240, 320, 'SkinScene', { fontSize: '20px', color: '#1A1D2E' }).setOrigin(0.5);
-      this.scene.start('GameScene');
+      this.selected = PAWS.selectedSkin;
+
+      this.add.rectangle(240, 320, 480, 640, 0x87ceeb).setOrigin(0.5);
+      this.add.image(240, 560, 'ground_day').setOrigin(0.5, 0);
+
+      this.add
+        .text(240, 45, 'Flappy Paws', {
+          fontFamily: '"Space Grotesk", sans-serif',
+          fontSize: '28px',
+          fontStyle: 'bold',
+          color: '#1A1D2E'
+        })
+        .setOrigin(0.5);
+      this.add
+        .text(440, 20, 'Best: ' + (PAWS.bestScores[0] || 0), {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '14px',
+          color: '#5B6BFF'
+        })
+        .setOrigin(1, 0);
+
+      const startX = 240 - 88 * 2;
+      this.cardContainers = SKIN_NAMES.map((name, i) => this.buildCard(i, startX + i * 88, 230, SKIN_UNLOCK_REQ[i]));
+
+      this.previewImage = this.add.image(240, 390, 'bird_' + this.selected).setDisplaySize(80, 80);
+      this.tweens.add({
+        targets: this.previewImage,
+        y: 380,
+        duration: 700,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+      this.previewName = this.add
+        .text(240, 440, SKIN_NAMES[this.selected], { fontFamily: 'Inter, sans-serif', fontSize: '16px', color: '#1A1D2E' })
+        .setOrigin(0.5);
+
+      this.buildPlayButton();
+      this.refreshCards();
+    }
+
+    buildCard(i, cx, cy, req) {
+      const c = this.add.container(cx, cy);
+      const g = this.add.graphics();
+      const bird = this.add.image(0, -8, 'bird_' + i).setDisplaySize(48, 48);
+      const lock = this.add.text(0, -8, '🔒', { fontSize: '20px' }).setOrigin(0.5).setVisible(false);
+      const cond = this.add
+        .text(0, 34, req > 0 ? req + '점' : '', { fontFamily: 'Inter, sans-serif', fontSize: '10px', color: '#8890A4' })
+        .setOrigin(0.5);
+
+      c.add([g, bird, lock, cond]);
+      c.setSize(80, 100);
+      c.setInteractive(new Phaser.Geom.Rectangle(-40, -50, 80, 100), Phaser.Geom.Rectangle.Contains);
+      c.input.cursor = 'pointer';
+      c.on('pointerdown', () => this.onCardClick(i));
+
+      c.gfx = g;
+      c.bird = bird;
+      c.lock = lock;
+      c.baseY = cy;
+      return c;
+    }
+
+    onCardClick(i) {
+      if (!PAWS.unlockedSkins[i]) {
+        const c = this.cardContainers[i];
+        this.tweens.add({ targets: c, x: c.x - 5, duration: 60, yoyo: true, repeat: 5 });
+        return;
+      }
+
+      this.selected = i;
+      this.previewImage.setTexture('bird_' + i);
+      this.previewName.setText(SKIN_NAMES[i]);
+      this.refreshCards();
+    }
+
+    refreshCards() {
+      this.cardContainers.forEach((c, i) => {
+        const unlocked = PAWS.unlockedSkins[i];
+        c.bird.setAlpha(unlocked ? 1 : 0.45);
+        c.lock.setVisible(!unlocked);
+
+        c.gfx.clear();
+        c.gfx.fillStyle(0xffffff, 1);
+        c.gfx.fillRoundedRect(-40, -50, 80, 100, 12);
+
+        if (i === this.selected) {
+          c.gfx.lineStyle(3, 0xff6b6b, 1);
+        } else if (unlocked) {
+          c.gfx.lineStyle(2, 0x5b6bff, 1);
+        } else {
+          c.gfx.lineStyle(2, 0xcccccc, 1);
+        }
+        c.gfx.strokeRoundedRect(-40, -50, 80, 100, 12);
+
+        this.tweens.killTweensOf(c);
+        c.y = c.baseY;
+        if (i === this.selected) {
+          this.tweens.add({ targets: c, y: c.baseY - 6, duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        }
+      });
+    }
+
+    buildPlayButton() {
+      const bx = 240;
+      const by = 530;
+      const c = this.add.container(bx, by);
+
+      const g = this.add.graphics();
+      g.fillStyle(0x5b6bff, 1);
+      g.fillRoundedRect(-80, -25, 160, 50, 25);
+
+      const label = this.add
+        .text(0, 0, '🐾 PLAY!', {
+          fontFamily: '"Space Grotesk", sans-serif',
+          fontSize: '18px',
+          fontStyle: 'bold',
+          color: '#FFFFFF'
+        })
+        .setOrigin(0.5);
+
+      c.add([g, label]);
+      c.setSize(160, 50);
+      c.setInteractive(new Phaser.Geom.Rectangle(-80, -25, 160, 50), Phaser.Geom.Rectangle.Contains);
+      c.input.cursor = 'pointer';
+      c.on('pointerdown', () => {
+        this.tweens.add({
+          targets: c,
+          scale: 0.9,
+          duration: 80,
+          yoyo: true,
+          onComplete: () => {
+            PAWS.selectedSkin = this.selected;
+            saveState();
+            this.scene.start('GameScene');
+          }
+        });
+      });
     }
   }
 
