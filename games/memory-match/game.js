@@ -370,11 +370,13 @@
     container.setSize(CARD, CARD);
     container.setInteractive(new Phaser.Geom.Rectangle(-CARD / 2, -CARD / 2, CARD, CARD), Phaser.Geom.Rectangle.Contains);
     container.input.cursor = 'pointer';
-    container.on('pointerdown', () => {
-      cursorIndex = index;
-      updateCursorHighlight();
-      attemptFlip(index);
-    });
+    (function (i) {
+      container.on('pointerdown', () => {
+        cursorIndex = i;
+        updateCursorHighlight();
+        attemptFlip(i);
+      });
+    })(index);
 
     if (isSpecial) {
       scene.tweens.add({ targets: backRect, alpha: { from: 1, to: 0.85 }, duration: 700, yoyo: true, repeat: -1 });
