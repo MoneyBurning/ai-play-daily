@@ -472,6 +472,17 @@
   const TRAIL_COLORS = [0xffd600, 0xf48fb1, 0x69f0ae, 0xffffff, 0x90a4ae];
   const RAINBOW = [0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x8b00ff];
 
+  const ACHIEVEMENTS = {
+    first_play: { name: '첫 날개짓', icon: '🐣', req: () => PAWS.totalGames >= 1 },
+    score_10: { name: '하늘 입문', icon: '🌤', req: () => (PAWS.bestScores[0] || 0) >= 10 },
+    score_25: { name: '별 사냥꾼', icon: '⭐', req: () => (PAWS.bestScores[0] || 0) >= 25 },
+    score_50: { name: '우주비행사', icon: '🚀', req: () => (PAWS.bestScores[0] || 0) >= 50 },
+    score_100: { name: '전설의 새', icon: '🏆', req: () => (PAWS.bestScores[0] || 0) >= 100 },
+    combo_10: { name: '연속의 달인', icon: '🔥', req: () => PAWS.bestCombo >= 10 },
+    dj_100: { name: '더블마스터', icon: '💫', req: () => PAWS.doubleJumpCount >= 100 },
+    play_10: { name: '단골손님', icon: '🎮', req: () => PAWS.totalGames >= 10 }
+  };
+
   function getDifficulty(score) {
     return {
       speed: Math.min(180 + score * 2.8, 320),
@@ -701,6 +712,7 @@
       if (PAWS.score === 50) this.changeTheme('space');
 
       this.checkSkinUnlocks();
+      this.checkAchievements();
 
       if (typeof this.showComboEffect === 'function') this.showComboEffect();
       if (this.passSound) this.passSound();
@@ -711,6 +723,42 @@
         if (req > 0 && !PAWS.unlockedSkins[i] && PAWS.score >= req) {
           PAWS.unlockedSkins[i] = true;
           if (typeof this.showUnlockBanner === 'function') this.showUnlockBanner(i);
+        }
+      });
+    }
+
+    checkAchievements() {
+      Object.keys(ACHIEVEMENTS).forEach((key) => {
+        if (!PAWS.achievements[key] && ACHIEVEMENTS[key].req()) {
+          PAWS.achievements[key] = true;
+          saveState();
+          this.showAchievementToast(ACHIEVEMENTS[key]);
+        }
+      });
+    }
+
+    showAchievementToast(ach) {
+      const c = this.add.container(370, 700).setDepth(23);
+      const bg = this.add.rectangle(0, 0, 200, 54, 0x1a1d2e, 0.95).setStrokeStyle(2, 0xffd700, 1);
+      const label = this.add
+        .text(0, 0, ach.icon + ' 업적 달성!\n' + ach.name, {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '12px',
+          color: '#FFFFFF',
+          align: 'center'
+        })
+        .setOrigin(0.5);
+      c.add([bg, label]);
+
+      this.tweens.add({
+        targets: c,
+        y: 590,
+        duration: 400,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          this.time.delayedCall(2000, () => {
+            this.tweens.add({ targets: c, y: 700, alpha: 0, duration: 400, onComplete: () => c.destroy() });
+          });
         }
       });
     }
@@ -736,6 +784,8 @@
       if (this.isDead) return;
       this.isDead = true;
       PAWS.combo = 0;
+      PAWS.totalGames++;
+      this.checkAchievements();
 
       this.cameras.main.shake(300, 0.018);
 
@@ -757,7 +807,7 @@
         PAWS.bestScores.push(PAWS.score);
         PAWS.bestScores.sort((a, b) => b - a);
         PAWS.bestScores = PAWS.bestScores.slice(0, 5);
-        PAWS.totalGames++;
+        this.checkAchievements();
         saveState();
         this.scene.start('GameOverScene', { score: PAWS.score, isNewRecord: isNew, bestCombo: PAWS.bestCombo });
       }, 1600);

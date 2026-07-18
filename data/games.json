@@ -63,5 +63,18 @@
     "featured": true,
     "status": "live",
     "external_url": "https://ai-tycoon.pages.dev"
+  },
+  {
+    "id": "flappy-paws",
+    "title": "Flappy Paws",
+    "description": "귀여운 동물과 함께하는 더블점프 플래피버드! 스킨을 해제하고 심우주까지 날아가세요.",
+    "category": ["arcade", "casual"],
+    "tags": ["casual", "arcade", "cute"],
+    "thumbnail": "/assets/thumbnails/flappy-paws.webp",
+    "og_image": "/assets/og-images/flappy-paws.webp",
+    "date": "2026-07-19",
+    "controls": { "keyboard": ["Space"], "mobile": true },
+    "featured": true,
+    "status": "live"
   }
 ]
