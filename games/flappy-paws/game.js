@@ -1,15 +1,4 @@
 (function () {
-  // 게임 영역에서 스페이스/방향키 스크롤 방지
-  window.addEventListener(
-    'keydown',
-    (e) => {
-      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-        e.preventDefault();
-      }
-    },
-    { passive: false }
-  );
-
   const PAWS = {
     score: 0,
     bestScores: [],
@@ -581,12 +570,31 @@
         this.soundsReady = true;
         this.initSounds();
       };
-      this.input.keyboard.on('keydown', initSoundsOnce);
-      this.input.on('pointerdown', initSoundsOnce);
 
-      this.input.keyboard.on('keydown-SPACE', () => this.doJump());
-      this.input.on('pointerdown', (p) => {
-        if (p.y < 560) this.doJump();
+      this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+      // 스크롤 방지 + 점프 동시 처리
+      this.input.keyboard.on('keydown-SPACE', (e) => {
+        e.preventDefault ? e.preventDefault() : null;
+        initSoundsOnce();
+        this.doJump();
+      });
+
+      // 터치/클릭
+      this.input.on('pointerdown', (pointer) => {
+        initSoundsOnce();
+        if (pointer.y < 580) this.doJump();
+      });
+
+      // window 레벨 스크롤 방지는 아래만 유지 (점프 처리는 하지 않음)
+      this._scrollBlocker = (e) => {
+        if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
+      };
+      window.addEventListener('keydown', this._scrollBlocker, { passive: false });
+
+      // 씬 종료 시 리스너 제거
+      this.events.on('shutdown', () => {
+        window.removeEventListener('keydown', this._scrollBlocker);
       });
 
       this.pipePool = [];
