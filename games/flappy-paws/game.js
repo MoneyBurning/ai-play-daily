@@ -457,14 +457,195 @@
     }
   }
 
+  const THEMES = {
+    day: { sky: 0x87ceeb, ground: 'ground_day', pipe: 'pipe_day' },
+    evening: { sky: 0xff8a65, ground: 'ground_evening', pipe: 'pipe_evening' },
+    night: { sky: 0x1a1d2e, ground: 'ground_night', pipe: 'pipe_night' },
+    space: { sky: 0x000011, ground: 'ground_night', pipe: 'pipe_night' }
+  };
+
   class GameScene extends Phaser.Scene {
     constructor() {
       super('GameScene');
     }
 
-    create() {}
+    create() {
+      this.currentThemeKey = 'day';
+      this.currentSpeed = 180;
+      PAWS.currentTheme = 'day';
 
-    update() {}
+      this.skyRect = this.add.rectangle(240, 320, 480, 640, THEMES.day.sky).setOrigin(0.5).setDepth(0);
+
+      this.clouds = [];
+      for (let i = 0; i < 5; i++) {
+        const key = Phaser.Utils.Array.GetRandom(['cloud_s', 'cloud_m', 'cloud_l']);
+        const cloud = this.add
+          .image(Phaser.Math.Between(0, 480), Phaser.Math.Between(60, 250), key)
+          .setDepth(2)
+          .setAlpha(0.85);
+        this.clouds.push(cloud);
+      }
+
+      this.buildBirdDecor();
+      this.buildStarDecor();
+      this.buildAuroraDecor();
+
+      this.groundGroup = this.physics.add.staticGroup();
+      this.ground = this.groundGroup.create(240, 600, 'ground_day').setOrigin(0.5, 0).setDepth(15);
+      this.ground.refreshBody();
+    }
+
+    update(time, delta) {
+      this.updateClouds(delta);
+      this.updateBirdDecor(time);
+      this.updateAurora();
+    }
+
+    updateClouds(delta) {
+      const speed = this.currentSpeed * 0.3 * (delta / 1000);
+      this.clouds.forEach((cloud) => {
+        cloud.x -= speed;
+        if (cloud.x < -180) {
+          cloud.x = 520;
+          cloud.y = Phaser.Math.Between(60, 250);
+        }
+      });
+    }
+
+    buildBirdDecor() {
+      this.decorBirds = [];
+      for (let i = 0; i < 2; i++) {
+        const b = this.add
+          .text(Phaser.Math.Between(0, 480), Phaser.Math.Between(80, 180), '⌄', { fontSize: '14px', color: '#FFFFFF' })
+          .setDepth(1)
+          .setVisible(false);
+        b.baseY = b.y;
+        b.phase = Math.random() * Math.PI * 2;
+        this.decorBirds.push(b);
+      }
+    }
+
+    updateBirdDecor(time) {
+      this.decorBirds.forEach((b) => {
+        if (!b.visible) return;
+        b.x += 0.5;
+        if (b.x > 500) b.x = -20;
+        b.y = b.baseY + Math.sin(time * 0.002 + b.phase) * 10;
+      });
+    }
+
+    showBirdFlock() {
+      this.decorBirds.forEach((b) => b.setVisible(true));
+    }
+
+    buildStarDecor() {
+      this.decorStars = [];
+      for (let i = 0; i < 20; i++) {
+        const s = this.add
+          .image(Phaser.Math.Between(0, 480), Phaser.Math.Between(0, 200), 'star_p')
+          .setDepth(1)
+          .setVisible(false)
+          .setAlpha(0.2);
+        this.decorStars.push(s);
+        this.tweens.add({
+          targets: s,
+          alpha: { from: 0.2, to: 1 },
+          duration: Phaser.Math.Between(800, 1800),
+          yoyo: true,
+          repeat: -1,
+          delay: Phaser.Math.Between(0, 1000)
+        });
+      }
+    }
+
+    showStars() {
+      this.decorStars.forEach((s) => s.setVisible(true));
+    }
+
+    startMeteorShower() {
+      if (this.meteorTimer) return;
+      this.meteorTimer = this.time.addEvent({ delay: 3000, loop: true, callback: () => this.spawnMeteor() });
+    }
+
+    spawnMeteor() {
+      const startX = Phaser.Math.Between(300, 480);
+      const line = this.add.graphics().setDepth(1);
+      line.lineStyle(2, 0xffffff, 0.9);
+      line.lineBetween(startX, 0, startX - 60, 60);
+      this.tweens.add({ targets: line, x: '-=200', y: '+=200', alpha: 0, duration: 800, onComplete: () => line.destroy() });
+    }
+
+    buildAuroraDecor() {
+      this.aurora = this.add.graphics().setDepth(1).setVisible(false);
+      this.auroraOffset = 0;
+    }
+
+    showAurora() {
+      this.aurora.setVisible(true);
+    }
+
+    updateAurora() {
+      if (!this.aurora.visible) return;
+      this.auroraOffset += 0.02;
+      this.aurora.clear();
+
+      this.aurora.lineStyle(6, 0x69f0ae, 0.25);
+      this.aurora.beginPath();
+      for (let x = 0; x <= 480; x += 20) {
+        const y = 40 + Math.sin(x * 0.02 + this.auroraOffset) * 20;
+        if (x === 0) this.aurora.moveTo(x, y);
+        else this.aurora.lineTo(x, y);
+      }
+      this.aurora.strokePath();
+
+      this.aurora.lineStyle(6, 0x9c27b0, 0.2);
+      this.aurora.beginPath();
+      for (let x = 0; x <= 480; x += 20) {
+        const y = 60 + Math.sin(x * 0.02 + this.auroraOffset + 1) * 20;
+        if (x === 0) this.aurora.moveTo(x, y);
+        else this.aurora.lineTo(x, y);
+      }
+      this.aurora.strokePath();
+    }
+
+    changeTheme(newTheme) {
+      if (this.currentThemeKey === newTheme) return;
+      this.currentThemeKey = newTheme;
+      PAWS.currentTheme = newTheme;
+      const theme = THEMES[newTheme];
+      const fromColor = Phaser.Display.Color.ValueToColor(this.skyRect.fillColor);
+
+      this.tweens.addCounter({
+        from: 0,
+        to: 1,
+        duration: 1500,
+        onUpdate: (tw) => {
+          const t = tw.getValue();
+          const c = Phaser.Display.Color.Interpolate.ColorWithColor(
+            fromColor,
+            Phaser.Display.Color.ValueToColor(theme.sky),
+            100,
+            Math.floor(t * 100)
+          );
+          this.skyRect.setFillStyle(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
+        }
+      });
+
+      this.ground.setTexture(theme.ground);
+      this.updateCloudVisibilityForTheme(newTheme);
+    }
+
+    updateCloudVisibilityForTheme(theme) {
+      this.clouds.forEach((cloud) => {
+        if (theme === 'day') {
+          cloud.setVisible(true).setAlpha(0.85);
+        } else if (theme === 'evening') {
+          cloud.setVisible(true).setAlpha(0.4);
+        } else {
+          cloud.setVisible(false);
+        }
+      });
+    }
   }
 
   class GameOverScene extends Phaser.Scene {
