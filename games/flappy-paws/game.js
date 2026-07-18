@@ -464,6 +464,14 @@
     space: { sky: 0x000011, ground: 'ground_night', pipe: 'pipe_night' }
   };
 
+  const COYOTE_MS = 150;
+  const BUFFER_MS = 120;
+  const JUMP_VY = -520;
+  const DJ_VY = -420;
+
+  const TRAIL_COLORS = [0xffd600, 0xf48fb1, 0x69f0ae, 0xffffff, 0x90a4ae];
+  const RAINBOW = [0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x8b00ff];
+
   class GameScene extends Phaser.Scene {
     constructor() {
       super('GameScene');
@@ -493,12 +501,130 @@
       this.groundGroup = this.physics.add.staticGroup();
       this.ground = this.groundGroup.create(240, 600, 'ground_day').setOrigin(0.5, 0).setDepth(15);
       this.ground.refreshBody();
+
+      this.bird = this.physics.add.image(120, 300, 'bird_' + PAWS.selectedSkin).setDepth(10);
+      this.bird.body.setGravityY(0); // Phaser config gravity 사용
+
+      this.canDoubleJump = false;
+      this.hasDoubleJumped = false;
+      this.coyoteTimer = 0;
+      this.jumpBufferTimer = 0;
+      this.isOnGround = true;
+      this.gameStarted = false;
+      this.isDead = false;
+      this.trailTimer = 0;
+      this.rainbowTrail = false;
+
+      this.djHint = this.add.text(0, 0, '⭐⭐', { fontSize: '14px' }).setDepth(11).setVisible(false);
+
+      this.input.keyboard.on('keydown-SPACE', () => this.doJump());
+      this.input.on('pointerdown', (p) => {
+        if (p.y < 560) this.doJump();
+      });
     }
 
     update(time, delta) {
       this.updateClouds(delta);
       this.updateBirdDecor(time);
       this.updateAurora();
+      this.updateJump(delta);
+    }
+
+    startGame() {
+      this.gameStarted = true;
+    }
+
+    doJump() {
+      if (!this.gameStarted) {
+        this.startGame();
+        this.bird.setVelocityY(JUMP_VY);
+        this.canDoubleJump = true;
+        this.hasDoubleJumped = false;
+        this.isOnGround = false;
+        if (this.jumpSound) this.jumpSound();
+        return;
+      }
+
+      if (this.isOnGround || this.coyoteTimer > 0) {
+        this.bird.setVelocityY(JUMP_VY);
+        this.canDoubleJump = true;
+        this.hasDoubleJumped = false;
+        this.coyoteTimer = 0;
+        this.isOnGround = false;
+        if (this.jumpSound) this.jumpSound();
+        return;
+      }
+
+      if (this.canDoubleJump && !this.hasDoubleJumped) {
+        this.bird.setVelocityY(DJ_VY);
+        this.hasDoubleJumped = true;
+        this.canDoubleJump = false;
+        PAWS.doubleJumpCount++;
+        this.cameras.main.shake(80, 0.004);
+        this.spawnDJParticles();
+        if (this.doubleJumpSound) this.doubleJumpSound();
+        return;
+      }
+
+      this.jumpBufferTimer = BUFFER_MS;
+    }
+
+    updateJump(delta) {
+      if (this.coyoteTimer > 0) this.coyoteTimer -= delta;
+
+      if (this.jumpBufferTimer > 0) {
+        this.jumpBufferTimer -= delta;
+        if (this.isOnGround || this.coyoteTimer > 0 || (this.canDoubleJump && !this.hasDoubleJumped)) {
+          this.jumpBufferTimer = 0;
+          this.doJump();
+        }
+      }
+
+      if (this.bird && this.bird.body) {
+        const vy = this.bird.body.velocity.y;
+        const targetAngle = Phaser.Math.Clamp(vy * 0.06, -20, 70);
+        this.bird.angle = Phaser.Math.Linear(this.bird.angle, targetAngle, 0.18);
+
+        if (this.bird.body.velocity.y > 620) this.bird.setVelocityY(620);
+
+        this.trailTimer += delta;
+        if (this.trailTimer > 35) {
+          this.spawnTrail();
+          this.trailTimer = 0;
+        }
+      }
+
+      if (this.djHint) {
+        this.djHint.setPosition(this.bird.x, this.bird.y - 36);
+        this.djHint.setVisible(this.gameStarted && this.canDoubleJump && !this.hasDoubleJumped);
+      }
+    }
+
+    spawnTrail() {
+      const t = this.add.image(this.bird.x - 12, this.bird.y, 'bird_' + PAWS.selectedSkin).setDepth(9);
+      t.setScale(0.65);
+      t.setAlpha(0.3);
+      t.setTint(this.rainbowTrail ? RAINBOW[Math.floor(Date.now() / 80) % 6] : TRAIL_COLORS[PAWS.selectedSkin]);
+      this.tweens.add({ targets: t, alpha: 0, scale: 0.2, duration: 180, onComplete: () => t.destroy() });
+    }
+
+    spawnDJParticles() {
+      for (let i = 0; i < 16; i++) {
+        const angle = (i / 16) * Math.PI * 2;
+        const speed = Phaser.Math.Between(60, 130);
+        const p = this.add.image(this.bird.x, this.bird.y, 'star_p').setDepth(11);
+        this.tweens.add({
+          targets: p,
+          x: this.bird.x + Math.cos(angle) * speed * 0.5,
+          y: this.bird.y + Math.sin(angle) * speed * 0.5,
+          alpha: 0,
+          duration: 350,
+          onComplete: () => p.destroy()
+        });
+      }
+
+      const ring = this.add.circle(this.bird.x, this.bird.y, 10, 0xffffff, 0.6).setDepth(11);
+      this.tweens.add({ targets: ring, scale: 4, alpha: 0, duration: 350, onComplete: () => ring.destroy() });
     }
 
     updateClouds(delta) {
