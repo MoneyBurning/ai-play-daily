@@ -525,6 +525,45 @@
 
       this.djHint = this.add.text(0, 0, '⭐⭐', { fontSize: '14px' }).setDepth(11).setVisible(false);
 
+      this.scoreText = this.add
+        .text(240, 55, '0', {
+          fontFamily: '"Space Grotesk", sans-serif',
+          fontSize: '52px',
+          fontStyle: 'bold',
+          color: '#FFFFFF',
+          stroke: '#1A1D2E',
+          strokeThickness: 5
+        })
+        .setOrigin(0.5)
+        .setDepth(20);
+
+      this.bestText = this.add
+        .text(455, 18, 'Best: ' + (PAWS.bestScores[0] || 0), {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '13px',
+          color: 'rgba(255,255,255,0.7)'
+        })
+        .setOrigin(1, 0)
+        .setDepth(20);
+
+      this.tapToStartText = this.add
+        .text(240, 320, 'TAP TO START', {
+          fontFamily: '"Space Grotesk", sans-serif',
+          fontSize: '22px',
+          fontStyle: 'bold',
+          color: '#FFFFFF'
+        })
+        .setOrigin(0.5)
+        .setDepth(20);
+      this.tweens.add({
+        targets: this.tapToStartText,
+        y: 330,
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+
       this.input.keyboard.on('keydown-SPACE', () => this.doJump());
       this.input.on('pointerdown', (p) => {
         if (p.y < 560) this.doJump();
@@ -863,6 +902,12 @@
       PAWS.combo = 0;
       PAWS.bestCombo = 0;
       this.isDead = false;
+
+      if (this.tapToStartText) {
+        this.tapToStartText.destroy();
+        this.tapToStartText = null;
+      }
+
       this.time.delayedCall(1800, () => this.spawnPipe());
     }
 
@@ -1111,8 +1156,189 @@
       super('GameOverScene');
     }
 
+    init(data) {
+      this.finalScore = (data && data.score) || 0;
+      this.isNewRecord = !!(data && data.isNewRecord);
+      this.bestCombo = (data && data.bestCombo) || 0;
+    }
+
     create() {
-      this.add.text(240, 320, 'GAME OVER', { fontSize: '32px', color: '#1A1D2E' }).setOrigin(0.5);
+      this.add.rectangle(240, 320, 480, 640, 0xf7f8fc);
+      this.drawDotGrid();
+
+      const medal = this.getMedal(this.finalScore);
+      if (medal) {
+        const medalImg = this.add.image(240, -50, medal.key).setDisplaySize(96, 96);
+        this.tweens.add({
+          targets: medalImg,
+          y: 130,
+          scale: { from: 1.3, to: 1 },
+          duration: 500,
+          ease: 'Back.easeOut',
+          onComplete: () => {
+            this.tweens.add({ targets: medalImg, angle: 8, duration: 1000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+          }
+        });
+        this.medalSound();
+        this.add
+          .text(240, 190, medal.name, { fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#8890A4' })
+          .setOrigin(0.5);
+      } else {
+        this.add.text(240, 130, '😢', { fontSize: '64px' }).setOrigin(0.5);
+      }
+
+      this.add
+        .text(240, 210, 'GAME OVER', { fontFamily: '"Space Grotesk", sans-serif', fontSize: '36px', fontStyle: 'bold', color: '#1A1D2E' })
+        .setOrigin(0.5);
+
+      const cardBg = this.add.graphics();
+      cardBg.fillStyle(0xffffff, 1);
+      cardBg.fillRoundedRect(240 - 140, 300 - 50, 280, 100, 14);
+      cardBg.lineStyle(1, 0xeef0ff, 1);
+      cardBg.strokeRoundedRect(240 - 140, 300 - 50, 280, 100, 14);
+
+      const scoreLabel = this.isNewRecord ? `Score: ${this.finalScore} 🌟` : `Score: ${this.finalScore}`;
+      this.add
+        .text(240, 278, scoreLabel, {
+          fontFamily: '"Space Grotesk", sans-serif',
+          fontSize: '22px',
+          fontStyle: 'bold',
+          color: '#1A1D2E'
+        })
+        .setOrigin(0.5);
+      this.add
+        .text(240, 305, 'Best: ' + (PAWS.bestScores[0] || 0), { fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#5B6BFF' })
+        .setOrigin(0.5);
+      this.add
+        .text(240, 328, 'Best Combo x' + this.bestCombo, { fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#8890A4' })
+        .setOrigin(0.5);
+
+      if (this.isNewRecord) {
+        const banner = this.add.container(240, 390).setScale(0);
+        const bbg = this.add.rectangle(0, 0, 220, 44, 0xffd700, 1).setStrokeStyle(2, 0xe8a400, 1);
+        const btext = this.add
+          .text(0, 0, '🏆 NEW RECORD!', { fontFamily: '"Space Grotesk", sans-serif', fontSize: '15px', fontStyle: 'bold', color: '#1A1D2E' })
+          .setOrigin(0.5);
+        banner.add([bbg, btext]);
+        this.tweens.add({ targets: banner, scale: 1, duration: 400, ease: 'Back.easeOut' });
+
+        for (let i = 0; i < 5; i++) {
+          this.time.delayedCall(i * 200, () => {
+            this.spawnConfetti(Phaser.Math.Between(60, 420), Phaser.Math.Between(150, 350));
+          });
+        }
+      }
+
+      this.buildButton(160, 450, '🏠 Menu', '#5B6BFF', false, () => this.scene.start('SkinScene'));
+      this.buildButton(320, 450, '▶ Retry', '#5B6BFF', true, () => this.scene.start('GameScene'));
+
+      this.buildTopFive();
+    }
+
+    getMedal(score) {
+      if (score >= 50) return { key: 'medal_platinum', name: 'PLATINUM' };
+      if (score >= 30) return { key: 'medal_gold', name: 'GOLD' };
+      if (score >= 15) return { key: 'medal_silver', name: 'SILVER' };
+      if (score >= 5) return { key: 'medal_bronze', name: 'BRONZE' };
+      return null;
+    }
+
+    buildButton(x, y, label, color, filled, onClick) {
+      const c = this.add.container(x, y);
+      const colorInt = Phaser.Display.Color.HexStringToColor(color).color;
+      const g = this.add.graphics();
+
+      if (filled) {
+        g.fillStyle(colorInt, 1);
+        g.fillRoundedRect(-70, -22, 140, 44, 22);
+      } else {
+        g.lineStyle(2, colorInt, 1);
+        g.strokeRoundedRect(-70, -22, 140, 44, 22);
+      }
+
+      const text = this.add
+        .text(0, 0, label, {
+          fontFamily: '"Space Grotesk", sans-serif',
+          fontSize: '14px',
+          fontStyle: 'bold',
+          color: filled ? '#FFFFFF' : color
+        })
+        .setOrigin(0.5);
+
+      c.add([g, text]);
+      c.setSize(140, 44);
+      c.setInteractive(new Phaser.Geom.Rectangle(-70, -22, 140, 44), Phaser.Geom.Rectangle.Contains);
+      c.input.cursor = 'pointer';
+      c.on('pointerover', () => this.tweens.add({ targets: c, scale: 1.05, duration: 100 }));
+      c.on('pointerout', () => this.tweens.add({ targets: c, scale: 1, duration: 100 }));
+      c.on('pointerdown', onClick);
+      return c;
+    }
+
+    buildTopFive() {
+      this.add
+        .text(240, 505, 'TOP 5', { fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#8890A4' })
+        .setOrigin(0.5);
+
+      PAWS.bestScores.slice(0, 5).forEach((s, i) => {
+        const isCurrent = s === this.finalScore;
+        this.add
+          .text(240, 525 + i * 20, `${i + 1}. ${s}`, {
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
+            color: isCurrent ? '#5B6BFF' : '#1A1D2E',
+            fontStyle: isCurrent ? 'bold' : 'normal'
+          })
+          .setOrigin(0.5);
+      });
+    }
+
+    drawDotGrid() {
+      const g = this.add.graphics();
+      g.fillStyle(0xeef0ff, 0.6);
+      for (let x = 10; x < 480; x += 24) {
+        for (let y = 10; y < 640; y += 24) {
+          g.fillCircle(x, y, 1.5);
+        }
+      }
+    }
+
+    spawnConfetti(x, y) {
+      const colors = [0xffd700, 0xff6b6b, 0x5b6bff, 0x69f0ae];
+      const p = this.add.rectangle(x, -20, 6, 10, colors[Phaser.Math.Between(0, 3)]);
+      this.tweens.add({
+        targets: p,
+        y,
+        angle: 360,
+        duration: 600,
+        ease: 'Cubic.easeIn',
+        onComplete: () => {
+          this.tweens.add({ targets: p, alpha: 0, duration: 300, onComplete: () => p.destroy() });
+        }
+      });
+    }
+
+    medalSound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const beep = (freq, delay) => {
+          setTimeout(() => {
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'sine';
+            o.connect(g);
+            g.connect(ctx.destination);
+            o.frequency.value = freq;
+            g.gain.setValueAtTime(0.15, ctx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+            o.start();
+            o.stop(ctx.currentTime + 0.25);
+          }, delay);
+        };
+        [660, 880, 1100].forEach((f, i) => beep(f, i * 100));
+      } catch (e) {
+        /* WebAudio unavailable, ignore */
+      }
     }
   }
 
