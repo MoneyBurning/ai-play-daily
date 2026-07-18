@@ -530,6 +530,15 @@
         if (p.y < 560) this.doJump();
       });
 
+      this.soundsReady = false;
+      const initSoundsOnce = () => {
+        if (this.soundsReady) return;
+        this.soundsReady = true;
+        this.initSounds();
+      };
+      this.input.keyboard.on('keydown', initSoundsOnce);
+      this.input.on('pointerdown', initSoundsOnce);
+
       this.pipePool = [];
       this.coinPool = [];
       for (let i = 0; i < 6; i++) {
@@ -687,6 +696,165 @@
     hitObstacle() {
       if (this.isDead) return;
       this.isDead = true;
+      PAWS.combo = 0;
+
+      this.cameras.main.shake(300, 0.018);
+
+      this.physics.world.timeScale = 4;
+      this.time.timeScale = 0.25;
+      setTimeout(() => {
+        this.physics.world.timeScale = 1;
+        this.time.timeScale = 1;
+        this.showDeathEffect();
+      }, 300);
+
+      this.tweens.add({ targets: this.bird, angle: this.bird.angle + 720, y: 700, duration: 1200, ease: 'Cubic.easeIn' });
+
+      if (this.deathSound) this.deathSound();
+      if (navigator.vibrate) navigator.vibrate(50);
+
+      setTimeout(() => {
+        const isNew = this.checkNewRecord();
+        PAWS.bestScores.push(PAWS.score);
+        PAWS.bestScores.sort((a, b) => b - a);
+        PAWS.bestScores = PAWS.bestScores.slice(0, 5);
+        PAWS.totalGames++;
+        saveState();
+        this.scene.start('GameOverScene', { score: PAWS.score, isNewRecord: isNew, bestCombo: PAWS.bestCombo });
+      }, 1600);
+    }
+
+    showDeathEffect() {
+      this.spawnStarBurst(this.bird.x, this.bird.y);
+      const x = this.add.text(this.bird.x, this.bird.y, '✕', { fontSize: '28px', color: '#FF6B6B' }).setOrigin(0.5).setDepth(21);
+      this.tweens.add({ targets: x, alpha: 0, duration: 500, delay: 200, onComplete: () => x.destroy() });
+    }
+
+    checkNewRecord() {
+      return PAWS.score > (PAWS.bestScores[0] || 0);
+    }
+
+    showComboEffect() {
+      const combo = PAWS.combo;
+      if (combo < 3) return;
+
+      const labels = { 3: 'NICE!', 5: 'COMBO!', 8: 'GREAT!!', 10: 'AMAZING!!!', 15: 'LEGENDARY!!' };
+      const text = labels[combo];
+
+      if (text) {
+        const color = combo >= 10 ? '#FFD700' : '#FF6B6B';
+        const t = this.add
+          .text(240, 160, text, {
+            fontFamily: '"Space Grotesk", sans-serif',
+            fontSize: '28px',
+            fontStyle: 'bold',
+            color,
+            stroke: '#1A1D2E',
+            strokeThickness: 4
+          })
+          .setOrigin(0.5)
+          .setDepth(20)
+          .setAlpha(0);
+
+        this.tweens.add({
+          targets: t,
+          y: 130,
+          alpha: 1,
+          duration: 200,
+          onComplete: () => {
+            this.tweens.add({ targets: t, alpha: 0, duration: 300, delay: 600, onComplete: () => t.destroy() });
+          }
+        });
+      }
+
+      if (combo >= 5) this.showBorderGlow(combo >= 10 ? 0xff6b6b : 0xffd700);
+      if (combo === 5) this.spawnStarBurst(240, 320);
+      if (combo >= 10) {
+        this.rainbowTrail = true;
+        this.time.delayedCall(3000, () => {
+          this.rainbowTrail = false;
+        });
+      }
+    }
+
+    showBorderGlow(color) {
+      const g = this.add.rectangle(240, 320, 480, 640).setStrokeStyle(6, color, 1).setDepth(20).setAlpha(0.8);
+      this.tweens.add({ targets: g, alpha: 0, duration: 800, onComplete: () => g.destroy() });
+    }
+
+    spawnStarBurst(x, y) {
+      const colors = [0xffd700, 0xff6b6b, 0x5b6bff, 0x69f0ae, 0xff6ba8];
+      for (let i = 0; i < 20; i++) {
+        const angle = (i / 20) * Math.PI * 2;
+        const speed = Phaser.Math.Between(80, 160);
+        const s = this.add.image(x, y, 'star_p').setTint(colors[i % colors.length]).setDepth(20);
+        this.tweens.add({
+          targets: s,
+          x: x + Math.cos(angle) * speed * 0.6,
+          y: y + Math.sin(angle) * speed * 0.6,
+          alpha: 0,
+          scale: 0.1,
+          duration: 700,
+          ease: 'Cubic.easeOut',
+          onComplete: () => s.destroy()
+        });
+      }
+    }
+
+    showUnlockBanner(skinIndex) {
+      const c = this.add.container(240, 700).setDepth(22);
+      const bg = this.add.rectangle(0, 0, 260, 64, 0x1a1d2e, 0.95).setStrokeStyle(2, 0xffd700, 1);
+      const icon = this.add.image(-90, 0, 'bird_' + skinIndex).setDisplaySize(32, 32);
+      const label = this.add
+        .text(10, 0, '🎉 NEW SKIN!\n' + SKIN_NAMES[skinIndex], {
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '13px',
+          color: '#FFFFFF',
+          align: 'center'
+        })
+        .setOrigin(0.5);
+      c.add([bg, icon, label]);
+
+      this.tweens.add({
+        targets: c,
+        y: 570,
+        duration: 400,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          this.time.delayedCall(2500, () => {
+            this.tweens.add({ targets: c, y: 700, alpha: 0, duration: 400, onComplete: () => c.destroy() });
+          });
+        }
+      });
+    }
+
+    initSounds() {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const beep = (freq, type = 'sine', dur = 0.12, vol = 0.18, freqEnd = null) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = type;
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.frequency.value = freq;
+        if (freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, ctx.currentTime + dur);
+        g.gain.setValueAtTime(vol, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+        o.start();
+        o.stop(ctx.currentTime + dur);
+      };
+
+      this.jumpSound = () => beep(520, 'sine', 0.12, 0.18, 780);
+      this.doubleJumpSound = () => {
+        beep(780, 'sine', 0.13, 0.2, 1100);
+        setTimeout(() => beep(1000, 'sine', 0.1, 0.15), 60);
+      };
+      this.passSound = () => beep(880, 'triangle', 0.12, 0.12);
+      this.coinSound = () => beep(1200, 'sine', 0.1, 0.1, 1600);
+      this.deathSound = () => beep(400, 'sawtooth', 0.4, 0.25, 80);
+      this.medalSound = () => {
+        [660, 880, 1100].forEach((f, i) => setTimeout(() => beep(f, 'sine', 0.25, 0.15), i * 100));
+      };
     }
 
     startGame() {
