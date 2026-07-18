@@ -464,11 +464,6 @@
     space: { sky: 0x000011, ground: 'ground_night', pipe: 'pipe_night' }
   };
 
-  const COYOTE_MS = 150;
-  const BUFFER_MS = 120;
-  const JUMP_VY = -520;
-  const DJ_VY = -420;
-
   const TRAIL_COLORS = [0xffd600, 0xf48fb1, 0x69f0ae, 0xffffff, 0x90a4ae];
   const RAINBOW = [0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x8b00ff];
 
@@ -485,8 +480,8 @@
 
   function getDifficulty(score) {
     return {
-      speed: Math.min(180 + score * 2.8, 320),
-      gap: Math.max(165 - score * 1.4, 110),
+      speed: Math.min(150 + score * 2.8, 320),
+      gap: Math.max(180 - score * 1.4, 120),
       spacing: Math.max(3200 - score * 20, 2000)
     };
   }
@@ -498,7 +493,7 @@
 
     create() {
       this.currentThemeKey = 'day';
-      this.currentSpeed = 180;
+      this.currentSpeed = 150;
       PAWS.currentTheme = 'day';
 
       this.skyRect = this.add.rectangle(240, 320, 480, 640, THEMES.day.sky).setOrigin(0.5).setDepth(0);
@@ -524,17 +519,11 @@
       this.bird = this.physics.add.image(120, 300, 'bird_' + PAWS.selectedSkin).setDepth(10);
       this.bird.body.setGravityY(0); // Phaser config gravity 사용
 
-      this.canDoubleJump = false;
-      this.hasDoubleJumped = false;
-      this.coyoteTimer = 0;
-      this.jumpBufferTimer = 0;
-      this.isOnGround = true;
       this.gameStarted = false;
       this.isDead = false;
+      this.isAlive = true;
       this.trailTimer = 0;
       this.rainbowTrail = false;
-
-      this.djHint = this.add.text(0, 0, '⭐⭐', { fontSize: '14px' }).setDepth(11).setVisible(false);
 
       this.scoreText = this.add
         .text(240, 55, '0', {
@@ -575,11 +564,6 @@
         ease: 'Sine.easeInOut'
       });
 
-      this.input.keyboard.on('keydown-SPACE', () => this.doJump());
-      this.input.on('pointerdown', (p) => {
-        if (p.y < 560) this.doJump();
-      });
-
       this.soundsReady = false;
       const initSoundsOnce = () => {
         if (this.soundsReady) return;
@@ -588,6 +572,11 @@
       };
       this.input.keyboard.on('keydown', initSoundsOnce);
       this.input.on('pointerdown', initSoundsOnce);
+
+      this.input.keyboard.on('keydown-SPACE', () => this.doJump());
+      this.input.on('pointerdown', (p) => {
+        if (p.y < 560) this.doJump();
+      });
 
       this.pipePool = [];
       this.coinPool = [];
@@ -656,7 +645,7 @@
         }
       });
 
-      if (this.bird.y > 558 && !this.isDead) this.hitObstacle();
+      if (this.bird.y > 540 && !this.isDead) this.hitObstacle();
       if (this.bird.y < 10) this.bird.setVelocityY(300);
     }
 
@@ -783,6 +772,7 @@
     hitObstacle() {
       if (this.isDead) return;
       this.isDead = true;
+      this.isAlive = false;
       PAWS.combo = 0;
       PAWS.totalGames++;
       this.checkAchievements();
@@ -958,72 +948,33 @@
         this.tapToStartText = null;
       }
 
-      this.time.delayedCall(1800, () => this.spawnPipe());
+      this.time.delayedCall(2500, () => this.spawnPipe());
     }
 
     doJump() {
+      if (!this.isAlive) return;
       if (!this.gameStarted) {
+        this.gameStarted = true;
         this.startGame();
-        this.bird.setVelocityY(JUMP_VY);
-        this.canDoubleJump = true;
-        this.hasDoubleJumped = false;
-        this.isOnGround = false;
-        if (this.jumpSound) this.jumpSound();
-        return;
       }
-
-      if (this.isOnGround || this.coyoteTimer > 0) {
-        this.bird.setVelocityY(JUMP_VY);
-        this.canDoubleJump = true;
-        this.hasDoubleJumped = false;
-        this.coyoteTimer = 0;
-        this.isOnGround = false;
-        if (this.jumpSound) this.jumpSound();
-        return;
-      }
-
-      if (this.canDoubleJump && !this.hasDoubleJumped) {
-        this.bird.setVelocityY(DJ_VY);
-        this.hasDoubleJumped = true;
-        this.canDoubleJump = false;
-        PAWS.doubleJumpCount++;
-        this.cameras.main.shake(80, 0.004);
-        this.spawnDJParticles();
-        if (this.doubleJumpSound) this.doubleJumpSound();
-        return;
-      }
-
-      this.jumpBufferTimer = BUFFER_MS;
+      this.bird.setVelocityY(-420);
+      if (this.jumpSound) this.jumpSound();
+      this.spawnJumpParticles();
     }
 
     updateJump(delta) {
-      if (this.coyoteTimer > 0) this.coyoteTimer -= delta;
-
-      if (this.jumpBufferTimer > 0) {
-        this.jumpBufferTimer -= delta;
-        if (this.isOnGround || this.coyoteTimer > 0 || (this.canDoubleJump && !this.hasDoubleJumped)) {
-          this.jumpBufferTimer = 0;
-          this.doJump();
-        }
-      }
-
       if (this.bird && this.bird.body) {
         const vy = this.bird.body.velocity.y;
         const targetAngle = Phaser.Math.Clamp(vy * 0.06, -20, 70);
         this.bird.angle = Phaser.Math.Linear(this.bird.angle, targetAngle, 0.18);
 
-        if (this.bird.body.velocity.y > 620) this.bird.setVelocityY(620);
+        if (this.bird.body.velocity.y > 500) this.bird.setVelocityY(500);
 
         this.trailTimer += delta;
         if (this.trailTimer > 35) {
           this.spawnTrail();
           this.trailTimer = 0;
         }
-      }
-
-      if (this.djHint) {
-        this.djHint.setPosition(this.bird.x, this.bird.y - 36);
-        this.djHint.setVisible(this.gameStarted && this.canDoubleJump && !this.hasDoubleJumped);
       }
     }
 
@@ -1035,23 +986,20 @@
       this.tweens.add({ targets: t, alpha: 0, scale: 0.2, duration: 180, onComplete: () => t.destroy() });
     }
 
-    spawnDJParticles() {
-      for (let i = 0; i < 16; i++) {
-        const angle = (i / 16) * Math.PI * 2;
-        const speed = Phaser.Math.Between(60, 130);
+    spawnJumpParticles() {
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const speed = Phaser.Math.Between(40, 90);
         const p = this.add.image(this.bird.x, this.bird.y, 'star_p').setDepth(11);
         this.tweens.add({
           targets: p,
-          x: this.bird.x + Math.cos(angle) * speed * 0.5,
-          y: this.bird.y + Math.sin(angle) * speed * 0.5,
+          x: this.bird.x + Math.cos(angle) * speed * 0.4,
+          y: this.bird.y + Math.sin(angle) * speed * 0.4,
           alpha: 0,
-          duration: 350,
+          duration: 250,
           onComplete: () => p.destroy()
         });
       }
-
-      const ring = this.add.circle(this.bird.x, this.bird.y, 10, 0xffffff, 0.6).setDepth(11);
-      this.tweens.add({ targets: ring, scale: 4, alpha: 0, duration: 350, onComplete: () => ring.destroy() });
     }
 
     updateClouds(delta) {
@@ -1398,7 +1346,7 @@
     height: 640,
     parent: document.querySelector('.game-stage') || document.body,
     backgroundColor: '#87CEEB',
-    physics: { default: 'arcade', arcade: { gravity: { y: 1800 }, debug: false } },
+    physics: { default: 'arcade', arcade: { gravity: { y: 1000 }, debug: false } },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     scene: [BootScene, SkinScene, GameScene, GameOverScene]
   };
