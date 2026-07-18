@@ -472,6 +472,14 @@
   const TRAIL_COLORS = [0xffd600, 0xf48fb1, 0x69f0ae, 0xffffff, 0x90a4ae];
   const RAINBOW = [0xff0000, 0xff7f00, 0xffff00, 0x00ff00, 0x0000ff, 0x8b00ff];
 
+  function getDifficulty(score) {
+    return {
+      speed: Math.min(180 + score * 2.8, 320),
+      gap: Math.max(165 - score * 1.4, 110),
+      spacing: Math.max(3200 - score * 20, 2000)
+    };
+  }
+
   class GameScene extends Phaser.Scene {
     constructor() {
       super('GameScene');
@@ -521,6 +529,28 @@
       this.input.on('pointerdown', (p) => {
         if (p.y < 560) this.doJump();
       });
+
+      this.pipePool = [];
+      this.coinPool = [];
+      for (let i = 0; i < 6; i++) {
+        const top = this.physics.add.image(1200, 0, 'pipe_day').setDepth(5).setActive(false).setVisible(false);
+        const bot = this.physics.add
+          .image(1200, 0, 'pipe_day')
+          .setDepth(5)
+          .setActive(false)
+          .setVisible(false)
+          .setFlipY(true);
+        top.body.allowGravity = false;
+        bot.body.allowGravity = false;
+        this.pipePool.push({ top, bot, scored: false });
+      }
+      for (let i = 0; i < 6; i++) {
+        const c = this.physics.add.image(1200, 0, 'coin').setDepth(8).setActive(false).setVisible(false);
+        c.body.allowGravity = false;
+        this.coinPool.push(c);
+      }
+      this.lastGapY = 300;
+      this.nextPipeX = 500;
     }
 
     update(time, delta) {
@@ -528,10 +558,144 @@
       this.updateBirdDecor(time);
       this.updateAurora();
       this.updateJump(delta);
+      this.updatePipesAndCoins();
+    }
+
+    updatePipesAndCoins() {
+      this.pipePool.forEach((pair) => {
+        if (!pair.top.active) return;
+
+        if (!pair.scored && pair.top.x < this.bird.x - 30) {
+          pair.scored = true;
+          this.addScore();
+        }
+
+        if (pair.top.x < -80) {
+          pair.top.setActive(false).setVisible(false);
+          pair.bot.setActive(false).setVisible(false);
+        }
+
+        if (!this.isDead) {
+          const bx = this.bird.x;
+          const by = this.bird.y;
+          [pair.top, pair.bot].forEach((pipe) => {
+            if (Math.abs(bx - pipe.x) < 46 && Math.abs(by - pipe.y) < 216) this.hitObstacle();
+          });
+        }
+      });
+
+      this.coinPool.forEach((coin) => {
+        if (!coin.active) return;
+        if (Phaser.Math.Distance.Between(coin.x, coin.y, this.bird.x, this.bird.y) < 26) {
+          coin.setActive(false).setVisible(false);
+          this.tweens.killTweensOf(coin);
+          this.collectCoin();
+        }
+        if (coin.x < -40) {
+          coin.setActive(false).setVisible(false);
+          this.tweens.killTweensOf(coin);
+        }
+      });
+
+      if (this.bird.y > 558 && !this.isDead) this.hitObstacle();
+      if (this.bird.y < 10) this.bird.setVelocityY(300);
+    }
+
+    spawnPipe() {
+      const diff = getDifficulty(PAWS.score);
+      const gapCenterY = Phaser.Math.Clamp(this.lastGapY + Phaser.Math.Between(-90, 90), 160, 480);
+      this.lastGapY = gapCenterY;
+
+      const pair = this.pipePool.find((p) => !p.top.active);
+      if (pair) {
+        const pipeKey = THEMES[this.currentThemeKey].pipe;
+        pair.top.setTexture(pipeKey);
+        pair.bot.setTexture(pipeKey);
+
+        pair.top.setPosition(this.nextPipeX, gapCenterY - diff.gap / 2 - 200);
+        pair.bot.setPosition(this.nextPipeX, gapCenterY + diff.gap / 2 + 200);
+        pair.top.setVelocityX(-diff.speed);
+        pair.bot.setVelocityX(-diff.speed);
+        pair.top.setActive(true).setVisible(true);
+        pair.bot.setActive(true).setVisible(true);
+        pair.scored = false;
+
+        if (Math.random() < 0.7) this.spawnCoin(this.nextPipeX, gapCenterY, diff.speed);
+      }
+
+      if (!this.isDead) {
+        this.time.delayedCall(diff.spacing, () => this.spawnPipe());
+      }
+    }
+
+    spawnCoin(x, y, speed) {
+      const coin = this.coinPool.find((c) => !c.active);
+      if (!coin) return;
+
+      coin.setPosition(x, y);
+      coin.setVelocityX(-speed);
+      coin.setActive(true).setVisible(true);
+
+      this.tweens.add({ targets: coin, y: y - 15, duration: 400, yoyo: true, repeat: -1 });
+    }
+
+    addScore() {
+      PAWS.score++;
+      PAWS.combo++;
+      if (PAWS.combo > PAWS.bestCombo) PAWS.bestCombo = PAWS.combo;
+
+      this.currentSpeed = getDifficulty(PAWS.score).speed;
+
+      if (this.scoreText) this.scoreText.setText(PAWS.score);
+
+      if (PAWS.score === 10) this.changeTheme('evening');
+      if (PAWS.score === 25) this.changeTheme('night');
+      if (PAWS.score === 50) this.changeTheme('space');
+
+      this.checkSkinUnlocks();
+
+      if (typeof this.showComboEffect === 'function') this.showComboEffect();
+      if (this.passSound) this.passSound();
+    }
+
+    checkSkinUnlocks() {
+      SKIN_UNLOCK_REQ.forEach((req, i) => {
+        if (req > 0 && !PAWS.unlockedSkins[i] && PAWS.score >= req) {
+          PAWS.unlockedSkins[i] = true;
+          if (typeof this.showUnlockBanner === 'function') this.showUnlockBanner(i);
+        }
+      });
+    }
+
+    collectCoin() {
+      if (this.coinSound) this.coinSound();
+
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const p = this.add.image(this.bird.x, this.bird.y, 'star_p').setDepth(11);
+        this.tweens.add({
+          targets: p,
+          x: this.bird.x + Math.cos(angle) * 40,
+          y: this.bird.y + Math.sin(angle) * 40,
+          alpha: 0,
+          duration: 300,
+          onComplete: () => p.destroy()
+        });
+      }
+    }
+
+    hitObstacle() {
+      if (this.isDead) return;
+      this.isDead = true;
     }
 
     startGame() {
       this.gameStarted = true;
+      PAWS.score = 0;
+      PAWS.combo = 0;
+      PAWS.bestCombo = 0;
+      this.isDead = false;
+      this.time.delayedCall(1800, () => this.spawnPipe());
     }
 
     doJump() {
