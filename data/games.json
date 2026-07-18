@@ -46,5 +46,22 @@
     },
     "featured": true,
     "status": "live"
+  },
+  {
+    "id": "ai-tycoon",
+    "title": "AI Tycoon",
+    "description": "AI 스타트업을 경영하는 브라우저 기반 경영 시뮬레이션",
+    "category": ["simulation", "strategy"],
+    "tags": ["tycoon", "simulation", "strategy", "ai"],
+    "thumbnail": "/assets/thumbnails/ai-tycoon.webp",
+    "og_image": "/assets/og-images/ai-tycoon.webp",
+    "date": "2026-07-19",
+    "controls": {
+      "keyboard": [],
+      "mobile": true
+    },
+    "featured": true,
+    "status": "live",
+    "external_url": "https://ai-tycoon.pages.dev"
   }
 ]

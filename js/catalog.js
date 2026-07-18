@@ -53,7 +53,14 @@
     card.dataset.category = (game.category || []).join(',');
 
     const link = document.createElement('a');
-    link.href = `game/slug.html?id=${encodeURIComponent(game.id)}`;
+
+    if (game.external_url) {
+      link.href = game.external_url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+    } else {
+      link.href = `game/slug.html?id=${encodeURIComponent(game.id)}`;
+    }
 
     link.appendChild(createThumb(game));
 
