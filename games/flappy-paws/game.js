@@ -1,4 +1,15 @@
 (function () {
+  // 게임 영역에서 스페이스/방향키 스크롤 방지
+  window.addEventListener(
+    'keydown',
+    (e) => {
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        e.preventDefault();
+      }
+    },
+    { passive: false }
+  );
+
   const PAWS = {
     score: 0,
     bestScores: [],
