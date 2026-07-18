@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Play Daily — Every day, a brand new game. Made by AI.</title>
+  <meta name="description" content="매일 새로운 게임이 업로드되는 웹 게임 포털, AI Play Daily.">
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/layout.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="logo">AI Play Daily</a>
+
+      <div class="search-bar">
+        <input type="search" placeholder="게임 검색...">
+      </div>
+
+      <nav class="site-nav">
+        <a href="index.html" class="nav-link is-active">Home</a>
+        <a href="games.html" class="nav-link">Games</a>
+        <a href="about.html" class="nav-link">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="site-main">
+
+    <section class="hero">
+      <div class="container">
+        <span class="badge badge-featured">Today's Game</span>
+        <h1>오늘의 게임 제목 (placeholder)</h1>
+        <p>게임에 대한 한 줄 설명이 여기에 들어갑니다.</p>
+        <a href="#" class="btn btn-primary">지금 플레이</a>
+      </div>
+    </section>
+
+    <section class="container">
+      <div class="chip-group">
+        <button type="button" class="chip is-active" data-category="all">ALL</button>
+        <button type="button" class="chip" data-category="arcade">Arcade</button>
+        <button type="button" class="chip" data-category="puzzle">Puzzle</button>
+        <button type="button" class="chip" data-category="ai">AI</button>
+        <button type="button" class="chip" data-category="action">Action</button>
+        <button type="button" class="chip" data-category="casual">Casual</button>
+      </div>
+    </section>
+
+    <section class="container">
+      <div id="game-grid" class="game-grid">
+        <!-- 게임 카드는 js/catalog.js에서 동적으로 렌더링됩니다 -->
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 AI Play Daily. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/catalog.js"></script>
+</body>
+</html>

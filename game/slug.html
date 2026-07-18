@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title id="page-title">게임 로딩 중... — AI Play Daily</title>
+  <meta name="description" id="page-description" content="AI Play Daily에서 게임을 플레이하세요.">
+
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/layout.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="#" id="back-btn" class="nav-link">&larr; 뒤로가기</a>
+      <h1 id="game-title" class="game-card__title">게임 로딩 중...</h1>
+    </div>
+  </header>
+
+  <main class="site-main">
+    <div class="container">
+      <div id="game-container" class="game-stage"></div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2026 AI Play Daily. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Phaser.js 3 (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
+  <script>
+    (function () {
+      const backBtn = document.getElementById('back-btn');
+      const titleEl = document.getElementById('game-title');
+      const pageTitleEl = document.getElementById('page-title');
+      const pageDescEl = document.getElementById('page-description');
+      const stage = document.getElementById('game-container');
+
+      backBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        if (document.referrer) {
+          history.back();
+        } else {
+          window.location.href = '../games.html';
+        }
+      });
+
+      function showError(message) {
+        stage.innerHTML = `<p class="empty-state">${message}</p>`;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const gameId = params.get('id');
+
+      if (!gameId) {
+        showError('게임을 찾을 수 없습니다. (id 파라미터 없음)');
+        return;
+      }
+
+      stage.id = gameId;
+
+      fetch('../data/games.json')
+        .then((res) => res.json())
+        .then((games) => {
+          const game = games.find((g) => g.id === gameId);
+
+          if (game) {
+            titleEl.textContent = game.title;
+            pageTitleEl.textContent = `${game.title} — AI Play Daily`;
+            pageDescEl.setAttribute('content', game.description || '');
+          } else {
+            titleEl.textContent = gameId;
+          }
+        })
+        .catch(() => {
+          titleEl.textContent = gameId;
+        })
+        .finally(() => {
+          loadGameScript(gameId);
+        });
+
+      function loadGameScript(id) {
+        const script = document.createElement('script');
+        script.src = `../games/${id}/game.js`;
+        script.onerror = function () {
+          showError('게임 파일을 불러오지 못했습니다.');
+        };
+        document.body.appendChild(script);
+      }
+    })();
+  </script>
+
+</body>
+</html>

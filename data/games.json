@@ -1,0 +1,50 @@
+[
+  {
+    "id": "snake-ai",
+    "title": "Snake AI",
+    "description": "AI가 학습한 뱀과 대결하는 클래식 스네이크 게임",
+    "category": ["arcade", "ai"],
+    "tags": ["snake", "ai", "casual"],
+    "thumbnail": "/assets/thumbnails/snake-ai.webp",
+    "og_image": "/assets/og-images/snake-ai.webp",
+    "date": "2026-07-17",
+    "controls": {
+      "keyboard": ["Arrow Keys"],
+      "mobile": true
+    },
+    "featured": false,
+    "status": "live"
+  },
+  {
+    "id": "memory-match",
+    "title": "Memory Match",
+    "description": "짝을 맞춰 카드를 뒤집는 두뇌 훈련 퍼즐 게임",
+    "category": ["puzzle", "casual"],
+    "tags": ["memory", "cards", "casual"],
+    "thumbnail": "/assets/thumbnails/memory-match.webp",
+    "og_image": "/assets/og-images/memory-match.webp",
+    "date": "2026-07-18",
+    "controls": {
+      "keyboard": [],
+      "mobile": true
+    },
+    "featured": false,
+    "status": "live"
+  },
+  {
+    "id": "color-jump",
+    "title": "Color Jump",
+    "description": "같은 색 발판만 밟아 최대한 멀리 점프하는 반응속도 게임",
+    "category": ["arcade", "action"],
+    "tags": ["reflex", "colors", "casual"],
+    "thumbnail": "/assets/thumbnails/color-jump.webp",
+    "og_image": "/assets/og-images/color-jump.webp",
+    "date": "2026-07-19",
+    "controls": {
+      "keyboard": ["Space", "Arrow Keys"],
+      "mobile": true
+    },
+    "featured": true,
+    "status": "live"
+  }
+]
