@@ -1,0 +1,16 @@
+{
+  "id": "snake-ai",
+  "title": "Snake AI",
+  "description": "AI가 학습한 뱀과 대결하는 클래식 스네이크 게임",
+  "category": ["arcade", "ai"],
+  "tags": ["snake", "ai", "casual"],
+  "thumbnail": "/assets/thumbnails/snake-ai.webp",
+  "og_image": "/assets/og-images/snake-ai.webp",
+  "date": "2026-07-17",
+  "controls": {
+    "keyboard": ["Arrow Keys", "WASD", "Space"],
+    "mobile": true
+  },
+  "featured": false,
+  "status": "live"
+}
