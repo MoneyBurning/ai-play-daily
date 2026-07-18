@@ -1,0 +1,16 @@
+{
+  "id": "memory-match",
+  "title": "Memory Match",
+  "description": "짝을 맞춰 카드를 뒤집는 두뇌 훈련 퍼즐 게임",
+  "category": ["puzzle", "casual"],
+  "tags": ["memory", "cards", "casual"],
+  "thumbnail": "/assets/thumbnails/memory-match.webp",
+  "og_image": "/assets/og-images/memory-match.webp",
+  "date": "2026-07-18",
+  "controls": {
+    "keyboard": ["Arrow Keys", "Enter", "Space"],
+    "mobile": true
+  },
+  "featured": false,
+  "status": "live"
+}

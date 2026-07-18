@@ -25,7 +25,7 @@
     "og_image": "/assets/og-images/memory-match.webp",
     "date": "2026-07-18",
     "controls": {
-      "keyboard": [],
+      "keyboard": ["Arrow Keys", "Enter", "Space"],
       "mobile": true
     },
     "featured": false,
