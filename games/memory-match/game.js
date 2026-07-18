@@ -6,7 +6,6 @@
   const GRID_TOP_BASE = 64;
   const BOTTOM_MARGIN = 20;
   const FLIP_DURATION = 120;
-  const PEEK_REVEAL_DURATION = 3000;
 
   const BASE_PAIR_SCORE = 100;
   const COMBO_CAP = 4;
@@ -16,7 +15,7 @@
   const GHOST_DECAY = 0.025;
   const GHOST_MIN = 0.02;
 
-  const SYMBOLS = ['🍎', '🍌', '🍇', '🍉', '🍒', '🍋', '🥝', '🍓'];
+  const SYMBOLS = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯'];
 
   const DIFFICULTIES = {
     easy: { key: 'easy', label: 'EASY', cols: 3, rows: 4, pairs: 6, timeLimit: 0 },
@@ -51,7 +50,6 @@
   let cards = [];
   let flippedIndices = [];
   let isAnimating = false;
-  let isPeeking = false;
 
   let cursorIndex = 0;
   let selectCursor = 1;
@@ -320,20 +318,11 @@
     };
   }
 
-  function displayGlyph(value) {
-    if (value === 'wild') return '⚡';
-    if (value === 'peek') return '🔍';
-    return value;
-  }
-
   function buildDeck(pairs) {
-    const normalCount = pairs - 2;
-    const chosenSymbols = Phaser.Utils.Array.Shuffle(SYMBOLS.slice()).slice(0, normalCount);
+    const chosenSymbols = Phaser.Utils.Array.Shuffle(SYMBOLS.slice()).slice(0, pairs);
 
     const values = [];
     chosenSymbols.forEach((s) => values.push(s, s));
-    values.push('wild', 'wild');
-    values.push('peek', 'peek');
 
     return Phaser.Utils.Array.Shuffle(values);
   }
@@ -347,22 +336,21 @@
   function createCard(value, index) {
     const pos = cardPosition(index, currentDifficulty.cols, gridOffsets);
     const container = scene.add.container(pos.x, pos.y);
-    const isSpecial = value === 'wild' || value === 'peek';
 
     const backRect = scene.add
       .rectangle(0, 0, CARD, CARD, COLORS.surface)
-      .setStrokeStyle(isSpecial ? 3 : 2, isSpecial ? COLORS.gold : COLORS.primary, isSpecial ? 1 : 0.6);
+      .setStrokeStyle(2, COLORS.primary, 0.6);
     const backText = scene.add
       .text(0, 0, '?', { fontFamily: '"Space Grotesk", sans-serif', fontSize: '30px', color: COLORS.primaryStr })
       .setOrigin(0.5);
-    const ghostText = scene.add.text(0, 0, displayGlyph(value), { fontSize: '40px' }).setOrigin(0.5).setAlpha(0);
+    const ghostText = scene.add.text(0, 0, value, { fontSize: '40px' }).setOrigin(0.5).setAlpha(0);
 
     const frontRect = scene.add
       .rectangle(0, 0, CARD, CARD, COLORS.tagBg)
       .setStrokeStyle(2, COLORS.primary, 0.5)
       .setVisible(false);
     const frontText = scene.add
-      .text(0, 0, displayGlyph(value), { fontSize: '42px' })
+      .text(0, 0, value, { fontSize: '42px' })
       .setOrigin(0.5)
       .setVisible(false);
 
@@ -377,10 +365,6 @@
         attemptFlip(i);
       });
     })(index);
-
-    if (isSpecial) {
-      scene.tweens.add({ targets: backRect, alpha: { from: 1, to: 0.85 }, duration: 700, yoyo: true, repeat: -1 });
-    }
 
     return {
       value,
@@ -446,7 +430,6 @@
 
     flippedIndices = [];
     isAnimating = false;
-    isPeeking = false;
     cursorIndex = 0;
     moves = 0;
     score = 0;
@@ -492,7 +475,7 @@
   }
 
   function attemptFlip(index) {
-    if (state !== 'playing' || isAnimating || isPeeking) return;
+    if (state !== 'playing' || isAnimating) return;
     const card = cards[index];
     if (!card || card.isMatched || card.isFlipped) return;
     if (flippedIndices.length >= 2) return;
@@ -589,25 +572,12 @@
     scene.tweens.add({ targets: comboGlowBorder, alpha: 0, duration: 900, ease: 'Cubic.easeOut' });
   }
 
-  function triggerPeekReveal() {
-    isPeeking = true;
-    const targets = cards.filter((c) => !c.isMatched && !c.isFlipped);
-    targets.forEach((c) => flipCardAnimation(c, true));
-
-    scene.time.delayedCall(PEEK_REVEAL_DURATION, () => {
-      targets.forEach((c) => {
-        if (!c.isMatched) flipCardAnimation(c, false);
-      });
-      isPeeking = false;
-    });
-  }
-
   function evaluatePair() {
     const [i1, i2] = flippedIndices;
     const c1 = cards[i1];
     const c2 = cards[i2];
 
-    const isMatch = c1.value === c2.value || c1.value === 'wild' || c2.value === 'wild';
+    const isMatch = c1.value === c2.value;
 
     if (isMatch) {
       c1.isMatched = true;
@@ -634,12 +604,8 @@
         scene.tweens.add({ targets: c.container, alpha: 0.35, scale: 0.9, duration: 200 });
       });
 
-      const involvesPeek = c1.value === 'peek' || c2.value === 'peek';
-
       flippedIndices = [];
       isAnimating = false;
-
-      if (involvesPeek) triggerPeekReveal();
 
       if (matchedPairs === currentDifficulty.pairs) {
         finishRound('win');
